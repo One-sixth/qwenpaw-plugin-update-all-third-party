@@ -14,13 +14,6 @@ QwenPaw 第三方插件一键更新插件。官方「全部更新」只覆盖官
 
 更新为热重装，**无需重启 QwenPaw**。作者不一致的更新会先提示，人工确认后才会执行。官方插件走 QwenPaw 自带更新机制，本插件只管第三方。
 
-## Agent 工具
-
-也可以在对话里让智能体直接操作：
-
-- `third_party_update_check`——检查全部第三方插件更新
-- `third_party_update_apply`——执行更新（默认全部，`plugin_ids` 可指定，`confirm_mismatch` 强制更新作者不一致项）
-
 ---
 
 实现细节与开发记录见 [MEMORY.md](MEMORY.md)。

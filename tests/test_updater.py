@@ -53,7 +53,7 @@ class TestApplyUpdates(unittest.TestCase):
         ), patch.object(
             updater, "_install_one", side_effect=fake_install
         ):
-            result = asyncio.run(updater.apply_updates())
+            result = asyncio.run(updater.apply_updates(None))
 
         self.assertEqual([x["plugin_id"] for x in result["updated"]], ["b"])
         self.assertEqual(len(result["skipped_mismatch"]), 1)
@@ -73,7 +73,7 @@ class TestApplyUpdates(unittest.TestCase):
         with patch.object(updater, "_ensure_report", return_value=(report, False)), patch.object(
             updater, "_install_one", side_effect=fake_install
         ):
-            result = asyncio.run(updater.apply_updates(confirm_mismatch=True))
+            result = asyncio.run(updater.apply_updates(None, confirm_mismatch=True))
 
         self.assertEqual([x["plugin_id"] for x in result["updated"]], ["a"])
         self.assertEqual(result["skipped_mismatch"], [])
@@ -87,7 +87,7 @@ class TestApplyUpdates(unittest.TestCase):
         with patch.object(updater, "_ensure_report", return_value=(report, False)), patch.object(
             updater, "_install_one", side_effect=fake_install
         ):
-            result = asyncio.run(updater.apply_updates(plugin_ids=["a", "zzz"]))
+            result = asyncio.run(updater.apply_updates(None, plugin_ids=["a", "zzz"]))
 
         self.assertEqual([x["plugin_id"] for x in result["updated"]], ["a"])
         self.assertEqual(result["unknown_ids"], ["zzz"])
@@ -101,25 +101,11 @@ class TestApplyUpdates(unittest.TestCase):
         with patch.object(updater, "_ensure_report", return_value=(report, False)), patch.object(
             updater, "_install_one", side_effect=fake_install
         ):
-            result = asyncio.run(updater.apply_updates())
+            result = asyncio.run(updater.apply_updates(None))
 
         self.assertEqual(result["updated"], [])
         self.assertEqual(result["failed"][0]["plugin_id"], "a")
         self.assertIn("下载失败", result["failed"][0]["message"])
-
-    def test_resolve_request_shim(self):
-        fake_app = MagicMock()
-        fake_app.state.plugin_loader = MagicMock()
-        with patch(
-            "qwenpaw.plugins.registry.PluginRegistry"
-        ) as MockReg:
-            MockReg.return_value.get_plugin_http_app.return_value = fake_app
-            req = updater._resolve_request(None)
-            self.assertIs(req.app, fake_app)
-
-    def test_resolve_request_passthrough(self):
-        sentinel = object()
-        self.assertIs(updater._resolve_request(sentinel), sentinel)
 
 
 class TestApplyBusy(unittest.TestCase):
@@ -134,13 +120,13 @@ class TestApplyBusy(unittest.TestCase):
             with patch.object(
                 updater, "_ensure_report", side_effect=slow_ensure
             ):
-                t1 = asyncio.create_task(updater.apply_updates())
+                t1 = asyncio.create_task(updater.apply_updates(None))
                 await asyncio.sleep(0.01)  # 让 t1 置位 busy 标志
                 with self.assertRaises(updater.BusyError):
-                    await updater.apply_updates()
+                    await updater.apply_updates(None)
                 await t1  # 第一个正常完成，标志复位
                 # 完成后可再次执行（不残留 busy）
-                return await updater.apply_updates()
+                return await updater.apply_updates(None)
 
         result = asyncio.run(scenario())
         self.assertEqual(result["updated"], [])
@@ -156,7 +142,7 @@ class TestApplyBusy(unittest.TestCase):
 
         with patch.object(updater, "_ensure_report", side_effect=boom):
             with self.assertRaises(RuntimeError):
-                asyncio.run(updater.apply_updates())
+                asyncio.run(updater.apply_updates(None))
         # 失败后标志必须复位（finally 保证）
         self.assertFalse(updater._APPLYING)
 
@@ -217,7 +203,7 @@ class TestInstallOne(unittest.TestCase):
         ), patch.object(
             updater, "invalidate_report", wraps=updater.invalidate_report
         ) as inv:
-            asyncio.run(updater.apply_updates())
+            asyncio.run(updater.apply_updates(None))
         inv.assert_called_once()
 
     def test_report_stale_reflects_cache_age(self):
@@ -229,7 +215,7 @@ class TestInstallOne(unittest.TestCase):
         with patch.object(
             updater, "_ensure_report", return_value=(report, True)
         ), patch.object(updater, "_install_one"):
-            result = asyncio.run(updater.apply_updates())
+            result = asyncio.run(updater.apply_updates(None))
         self.assertTrue(result["report_stale"])
 
 

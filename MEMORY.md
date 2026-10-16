@@ -1,6 +1,6 @@
 # MEMORY — qwenpaw-plugin-update-all-third-party
 
-> 第三方插件一键更新插件。0.1.0 起步；0.2.0 幂等保护 + 前端忙碌态 + 限速 0.2s；0.2.1 修 apply 端点 422（FastAPI 签名反射踩坑）；0.2.2 前端弹窗/toast/按钮全面主题适配；0.2.3 卡片顶部「可升级」半透明红条；0.2.4 修「开始更新」按钮初始 disabled 死锁；0.2.5 缓存 TTL 24h；0.3.0 对抗复审修复（M1 改用官方 install_plugin_source / M2 plugin_ids 必填 / m1-m4 + 自更新闭环）；0.3.1 安装前清理 .git 残留（WinError 5）。
+> 第三方插件一键更新插件。0.1.0 起步；0.2.0 幂等保护 + 前端忙碌态 + 限速 0.2s；0.2.1 修 apply 端点 422（FastAPI 签名反射踩坑）；0.2.2 前端弹窗/toast/按钮全面主题适配；0.2.3 卡片顶部「可升级」半透明红条；0.2.4 修「开始更新」按钮初始 disabled 死锁；0.2.5 缓存 TTL 24h；0.3.0 对抗复审修复（M1 改用官方 install_plugin_source / M2 plugin_ids 必填 / m1-m4 + 自更新闭环）；0.3.1 安装前清理 .git 残留（WinError 5）；0.4.0 移除 agent 工具（纯 UI/HTTP 交付）。
 
 ## 项目档案
 
@@ -106,8 +106,34 @@
 
 真实测试三步全过：① 降版本 → check 报 1.0.0→1.2.0 可更新；② 不带 confirm → skipped_mismatch（跳过路径 ✓）；③ 带 confirm → updated `1.0.0 → 1.2.0`（install_plugin_source 完整链路 ✓），装后磁盘/API 均 1.2.0、.git 已清。
 
-## 待办
+## 0.4.0 移除 agent 工具（2026-10-17，用户拍板）
 
-- [ ] 用户刷新页面验证 0.3.0（前端无变化，主要是后端修复）
-- [ ] 真实执行一次更新（dream-skin / 其他）验证 install_plugin_source 链路
-- [ ] 市场归档 404 时的消息可读性优化（NOTE 12）
+两个 agent 工具（third_party_update_check / third_party_update_apply）是冗余交付——更新操作只经前端伴生 UI / HTTP 端点触发。拆除：
+
+- plugin.json 删 meta.tools；plugin.py 删 register_tool（仅剩 register_http_router）
+- tools/ 目录整体删除；updater 删 `_resolve_request`（None 分支只为 agent 工具存在），`apply_updates(request, ...)` request 必传（web 层唯一调用方）
+- force 重装时宿主自动清理：`Removed tools [...] from agents` + governance 注销（日志实测）——**旧工具注销无需手动处理，meta.tools 增删由重装流程闭环**
+- 测试 40 → 38（删 _resolve_request ×2），全部通过
+
+## ⚠️ 0.4.x 维护坑：git init 后从开发目录热重装会带 .git（2026-10-17）
+
+`git init` + commit 后，`POST /api/plugins/install {source: 开发目录}` 会把**开发目录的 `.git` 整个拷进安装目录**（loader copytree 不管 gitignore）→ 下次重装撞只读 git objects → WinError 5 死循环。本插件 `_install_one` 的 .git 清理只覆盖自己 apply 的路径，官方 install 端点没有清理。
+
+**标准热重装流程（二选一）**：
+1. **git archive → upload（推荐，根治）**：先 commit → `git archive --format=zip -o $env:TEMP\p.zip HEAD` → `curl -F "file=@..." "http://127.0.0.1:8088/api/plugins/upload?force=true"`——archive 只导出已提交内容，天然无 .git。**注意：未 commit 的变更不会被导出**（0.4.0 曾因此回退到 0.3.1，工具回潮）。
+2. **手动流程**：install 前先删安装目录 `.git`：`C:\Users\TWD\.qwenpaw\plugins\qwenpaw-plugin-update-all-third-party\.git`（force rmtree 处理只读位）→ install → 装完再删一次（本次拷贝又带入了）。
+
+0.4.0 部署时实测两方案：方案 1 因未 commit 回退 0.3.1（工具回潮教训：archive 版本=HEAD 提交版本）；方案 2 恢复正确，回潮工具被 0.4.0 重装再次注销。
+
+## 收工状态（2026-10-17）
+
+- 全链路（检查 → 跳过 → 确认更新 → 热重装）真实端到端验证通过（wait_agent_task 靶测）
+- 0.4.0 移除 agent 工具后宿主日志实证注销闭环；快速审查 CLEAN（1 条 docstring 残留已修）
+- git 已初始化并提交 2 笔（feat v0.3.1 / docs README 精简）；**工作区有未提交变更**：v0.4.0 移除工具 + web_api docstring 修复 + README 使用章节前的中间态——待作者 commit
+- 后续热重装一律走 `git archive → upload`（见上方维护坑章节），且需先 commit
+
+## 遗留（接受现状）
+
+- 市场归档 404 消息可读性（NOTE 12，原始异常文本直接透出）
+- 搜索仅首页 20 条（短名匹配固有代价，歧义兜底）
+- React 重渲染可能覆盖横条 position:relative（出现即重刷页面自愈）
