@@ -37,7 +37,6 @@ import os
 import shutil
 import stat
 import time
-from types import SimpleNamespace
 from typing import Optional
 
 try:
@@ -59,29 +58,6 @@ except ImportError:  # 兼容 pytest 直接以项目根导入
         last_report,
     )
 
-
-def _resolve_request(request=None):
-    """归一化请求上下文。
-
-    web 层传入真实 FastAPI Request；agent 工具层传 None —— 此时从
-    PluginRegistry 单例拿宿主根 app（lifespan 早期由宿主注入），
-    造 ``SimpleNamespace(app=app)`` shim。与官方
-    ``install_plugin_source`` 内部的 shim 同款语义（只访问
-    ``request.app``）。
-    """
-    if request is not None:
-        return request
-    from qwenpaw.plugins.registry import PluginRegistry
-
-    app = PluginRegistry().get_plugin_http_app()
-    if app is None:
-        raise RuntimeError(
-            "宿主 FastAPI app 未就绪（PluginRegistry 未注入 "
-            "plugin_http_app），无法执行插件更新"
-        )
-    return SimpleNamespace(app=app)
-
-
 logger = logging.getLogger(__name__)
 
 #: apply 复用 check 缓存的最大时长（秒），过期自动重查。24 小时。
@@ -93,9 +69,9 @@ MISMATCH_HINT_TPL = (
     "本次已跳过；确认无误后可重试并选择强制更新。"
 )
 
-#: 更新进行中标志（幂等保护）。原子性前提：宿主 web 端点与 async
-#: 工具运行在同一事件循环（协作式调度下检查+置位之间无 await 点）；
-#: 若未来出现多线程/多 loop 驱动，需改 threading.Lock。
+#: 更新进行中标志（幂等保护）。原子性前提：web 端点运行在宿主单
+#: 事件循环（协作式调度下检查+置位之间无 await 点）；若未来出现
+#: 多线程/多 loop 驱动，需改 threading.Lock。
 _APPLYING = False
 
 
@@ -127,18 +103,16 @@ def _force_rmtree(path) -> None:
     shutil.rmtree(path, onerror=_onerror)
 
 
-async def _install_one(item: UpdateItem, request=None) -> dict:
+async def _install_one(item: UpdateItem, request) -> dict:
     """通过宿主官方 install 全流程热重装单个插件。
 
-    request 为 None 时自动经 PluginRegistry 解析宿主 app（agent
-    工具路径）；解析推迟到真正需要安装时——全部跳过的批次不要求
-    宿主就绪。force 重装（含 after_load 的 post-load setup 与
-    agents 重载）全部由 install_plugin_source 内部完成，此处不再
-    补调 _finish（复审 M1：手动补调曾致 post-load 双重执行）。
+    request 为宿主 FastAPI Request（web 层必传）。force 重装（含
+    after_load 的 post-load setup 与 agents 重载）全部由
+    install_plugin_source 内部完成，此处不再补调 _finish（复审 M1：
+    手动补调曾致 post-load 双重执行）。
     """
     from qwenpaw.app.routers import plugins as host_plugins_router
 
-    request = _resolve_request(request)
     loader = getattr(request.app.state, "plugin_loader", None)
     if loader is None:
         return {"ok": False, "message": "宿主 plugin_loader 未就绪"}
@@ -176,20 +150,19 @@ async def _install_one(item: UpdateItem, request=None) -> dict:
 
 
 async def apply_updates(
-    request=None,
+    request,
     plugin_ids: Optional[list[str]] = None,
     confirm_mismatch: bool = False,
     force_refresh: bool = False,
 ) -> dict:
-    """执行第三方插件更新（主入口）。
+    """执行第三方插件更新（主入口，web 层调用）。
 
     Args:
-        request: 宿主 FastAPI Request；None 时自动经 PluginRegistry
-            取宿主 app 构造 shim（agent 工具路径）。仅在实际安装时
-            需要，全跳过批次不要求宿主就绪。
-        plugin_ids: 要更新的插件 id 列表；None / 空 = 全部待更新项
-            （**仅限受信任调用方**——agent 工具路径。HTTP 端点在
-            web_api 层强制要求显式 plugin_ids，见 M2）。
+        request: 宿主 FastAPI Request（取 plugin_loader / 触发 agents
+            重载用）。仅在实际安装时访问，全跳过批次不要求宿主就绪。
+        plugin_ids: 要更新的插件 id 列表；None / 空 = 全部待更新项。
+            **web 层（web_api）已强制 plugin_ids 必填**，空 body 400
+            拒绝（复审 M2）；本函数保留全量语义供内部复用。
         confirm_mismatch: 是否强制更新作者不一致的候选。
         force_refresh: 是否强制重新检查（忽略缓存）。
 

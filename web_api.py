@@ -7,7 +7,7 @@
    "confirm_mismatch": bool, "force_refresh": bool}
 
 前端伴生脚本（frontend/index.js）在插件商店页注入按钮后调用这两
-个端点；agent 工具（tools/）走同一份 checker/updater 逻辑。
+个端点。
 
 ⚠️ 签名反射约束：FastAPI 解析端点签名依赖模块级命名空间——
 Pydantic body 模型与 Request 等 import 必须放模块级，且本模块
@@ -18,8 +18,8 @@ future annotations，apply 端点 100% 复现 422）。
 
 ⚠️ apply 暴露面（复审 M2）：宿主 loopback 默认免认证，本端点
 要求 ``plugin_ids`` 必填——空 body 一律 400 拒绝，杜绝「无参一次
-POST = 批量覆盖安装全部插件」的放大破坏面。全量语义仅保留在受
-信任的 agent 工具路径（third_party_update_apply）。
+POST = 批量覆盖安装全部插件」的放大破坏面（全量语义已随 0.4.0
+移除 agent 工具而废止，apply 一律要求显式 plugin_ids）。
 """
 
 import logging
