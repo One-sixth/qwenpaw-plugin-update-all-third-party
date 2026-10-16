@@ -1,0 +1,33 @@
+{
+  "id": "qwenpaw-plugin-update-all-third-party",
+  "name": "第三方插件一键更新",
+  "version": "0.3.1",
+  "type": "tool",
+  "description": "插件商店增强：一键检查/更新所有第三方插件。官方「全部更新」对第三方插件三重失明（官方 catalog 不含第三方、作者严格比对易失配、市场翻页易超时），本插件改用市场精确搜索定位候选、按市场 id 短名匹配，绕开全部闸门。附前端伴生：插件商店「已安装插件」页注入「检查第三方更新」「更新全部第三方」按钮与版本变更确认弹窗，卡片级单独更新；作者不一致时给出提示并建议人工确认。",
+  "author": "onesixth",
+  "entry": {
+    "backend": "plugin.py",
+    "frontend": "frontend/index.js"
+  },
+  "dependencies": [],
+  "qwenpaw_version": {
+    "min": "2.0.0",
+    "max": "2.9.0"
+  },
+  "meta": {
+    "tools": [
+      {
+        "name": "third_party_update_check",
+        "description": "检查所有第三方插件的可用更新：扫描本地插件目录，跳过官方插件，逐个向插件市场精确搜索、按市场 id 短名匹配并比较版本（限速 0.2s/请求）。返回可更新/已是最新/不在市场/歧义候选四类报告，作者不一致的候选带警示标记。同一时刻只允许一个检查在跑，重复调用返回等待提示。",
+        "icon": "🔎",
+        "category": "runtime"
+      },
+      {
+        "name": "third_party_update_apply",
+        "description": "执行第三方插件更新：按最近一次检查结果（24 小时内有效，过期自动重查）逐个下载市场归档 ZIP 并热重装（等价官方安装流程：先卸载旧版再加载，agents 后台重载）。作者不一致的候选默认跳过并提示人工确认，confirm_mismatch=True 才强制更新。同一时刻只允许一个更新批次在跑，重复调用返回等待提示。",
+        "icon": "⬆️",
+        "category": "runtime"
+      }
+    ]
+  }
+}
