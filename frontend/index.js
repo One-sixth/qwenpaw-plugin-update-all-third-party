@@ -52,7 +52,8 @@
   }
 
   function isStorePage() {
-    if ((location.pathname || "") !== "/market") return false;
+    var path = location.pathname || "";
+    if (path !== "/market" && path !== "/settings/marketplace") return false;
     return new URLSearchParams(location.search).get("tab") === "plugins";
   }
 

@@ -1,6 +1,6 @@
 # MEMORY — qwenpaw-plugin-update-all-third-party
 
-> 第三方插件一键更新插件。0.1.0 起步；0.2.0 幂等保护 + 前端忙碌态 + 限速 0.2s；0.2.1 修 apply 端点 422（FastAPI 签名反射踩坑）；0.2.2 前端弹窗/toast/按钮全面主题适配；0.2.3 卡片顶部「可升级」半透明红条；0.2.4 修「开始更新」按钮初始 disabled 死锁；0.2.5 缓存 TTL 24h；0.3.0 对抗复审修复（M1 改用官方 install_plugin_source / M2 plugin_ids 必填 / m1-m4 + 自更新闭环）；0.3.1 安装前清理 .git 残留（WinError 5）；0.4.0 移除 agent 工具（纯 UI/HTTP 交付）。
+> 第三方插件一键更新插件。0.1.0 起步；0.2.0 幂等保护 + 前端忙碌态 + 限速 0.2s；0.2.1 修 apply 端点 422（FastAPI 签名反射踩坑）；0.2.2 前端弹窗/toast/按钮全面主题适配；0.2.3 卡片顶部「可升级」半透明红条；0.2.4 修「开始更新」按钮初始 disabled 死锁；0.2.5 缓存 TTL 24h；0.3.0 对抗复审修复（M1 改用官方 install_plugin_source / M2 plugin_ids 必填 / m1-m4 + 自更新闭环）；0.3.1 安装前清理 .git 残留（WinError 5）；0.4.0 移除 agent 工具（纯 UI/HTTP 交付）；0.4.1 修 isStorePage 漏 `/settings/marketplace` 路径（设置→扩展页按钮不注入）。
 
 ## 项目档案
 
